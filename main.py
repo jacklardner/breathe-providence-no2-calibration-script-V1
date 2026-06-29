@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from pipeline.pull_data import pull_data
 from pipeline.identify_lowRSD import identify_low_rsd
+from pipeline.build_datasets import build_datasets, plot_train_test_summary
 
 #*****USERS INPUT DATA HERE*****
 
@@ -81,3 +82,65 @@ low_rsd_df, rsd_df, rsd_summary = identify_low_rsd(
 )
 
 print("\n===== IDENTIFIED LOW RSD PERIODS =====")
+
+#*****BUILD TRAINING/TESTING DATASETS*****
+
+sensor_to_site = {
+    "Sensor03": "dpw",
+    "Sensor08": "dpw",
+    "Sensor09": "dpw",
+    "Sensor14": "dpw",
+    "Sensor16": "dpw",
+    "Sensor18": "dpw",
+    "Sensor21": "dpw",
+
+    "Sensor01": "mjf",
+    "Sensor17": "mjf",
+
+    "Sensor05": "pema",
+    "Sensor06": "pema",
+    "Sensor07": "pema",
+    "Sensor15": "pema",
+    "Sensor20": "pema",
+    "Sensor24": "pema",
+    "Sensor25": "pema",
+
+    "Sensor02": "pha",
+    "Sensor04": "pha",
+    "Sensor10": "pha",
+    "Sensor11": "pha",
+    "Sensor12": "pha",
+    "Sensor13": "pha",
+    "Sensor19": "pha",
+    "Sensor22": "pha",
+    "Sensor23": "pha",
+}
+
+print("\n===== BUILDING TRAINING/TESTING DATASETS =====")
+
+training_data, testing_data, dataset_summary = build_datasets(
+    beacon_data=beacon_df,
+    quant_data=quant_df,
+    low_rsd_data=low_rsd_df,
+    sensor_to_site=sensor_to_site
+)
+
+#save datasets
+
+for sensor, df in training_data.items():
+    df.to_csv(f"data for analysis/training_{sensor}.csv", index=False)
+
+for sensor, df in testing_data.items():
+    df.to_csv(f"data for analysis/testing_{sensor}.csv", index=False)
+
+dataset_summary.to_csv(
+    "data for analysis/dataset_summary.csv",
+    index=False
+)
+
+plot_train_test_summary(
+    dataset_summary,
+    output_path="final PDF report/visuals for PDF"
+)
+
+print("\n===== TRAINING/TESTING DATASETS COMPLETE =====")
