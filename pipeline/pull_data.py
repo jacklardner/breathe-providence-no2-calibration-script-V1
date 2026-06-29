@@ -2,6 +2,7 @@
 from datetime import timedelta, datetime, time
 from urllib.parse import quote
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 
@@ -109,19 +110,25 @@ def download_quant_data(api_key, start_date, end_date):
             chunk_start = chunk_end + timedelta(days=1)
 
         #construct dataframe
-
         df = pd.DataFrame(all_data)
 
         df["datetime_utc"] = pd.to_datetime(
-            df["period_end_utc"],
+            df["period_start_utc"],
             utc=True
         ).dt.tz_localize(None)
 
+        #remove negative values
+        n_negative = (df["no2"] < 0).sum()
+        if n_negative > 0:
+            print(f"{site.upper()}: setting {n_negative:,} negative NO2 values to NA")
+
+        df.loc[df["no2"] < 0, "no2"] = pd.NA
+
+        #trim back down to final requested days
         requested_start = datetime.combine(
             start_date,
             datetime.min.time()
         )
-
         requested_end = datetime.combine(
             end_date,
             datetime.max.time().replace(
@@ -130,16 +137,13 @@ def download_quant_data(api_key, start_date, end_date):
                 microsecond=0
             )
         )
-
         df = df[
             (df["datetime_utc"] >= requested_start) &
             (df["datetime_utc"] <= requested_end)
         ]
 
         df = df[["datetime_utc", "no2"]].copy()
-
         df = df.rename(columns={"no2": site})
-
         df = df.sort_values("datetime_utc")
 
         quant_data[site] = df
@@ -158,6 +162,58 @@ def download_quant_data(api_key, start_date, end_date):
         )
 
     merged = merged.dropna()
+
+    plt.figure(figsize=(8, 6))
+
+    plt.boxplot(
+        [
+            merged["dpw"],
+            merged["mjf"],
+            merged["pema"],
+            merged["pha"]
+        ],
+        labels=["DPW", "MJF", "PEMA", "PHA"]
+    )
+
+    plt.ylabel("NO2 (ppb)")
+    plt.title("Distribution of Hourly QuantAQ NO2 Measurements")
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "final PDF report/visuals for PDF/quant_boxplot.png",
+        dpi=300
+    )
+
+    plt.close()
+
+    summary_stats = merged[["dpw", "mjf", "pema", "pha"]].describe().round(2)
+
+    fig, ax = plt.subplots(figsize=(8, 3))
+
+    ax.axis("off")
+
+    table = ax.table(
+        cellText=summary_stats.values,
+        rowLabels=summary_stats.index,
+        colLabels=summary_stats.columns,
+        cellLoc="center",
+        loc="center"
+    )
+
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.2, 1.5)
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "final PDF report/visuals for PDF/quant_summary_statistics.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.close()
 
     print("\nFinal Quant dataset shape:", merged.shape)
     merged.to_csv("data for analysis/cleaned_quant.csv")
@@ -217,11 +273,7 @@ def download_beacon_data(start_date, end_date):
                     df[col] = pd.NA
 
             df = df[["datetime_utc"] + VARIABLES]
-
-            #drop missing values
-            before_drop = len(df)
             df = df.dropna()
-            after_drop = len(df)
 
             observed_hours = df["datetime_utc"].dt.floor("h").unique()
 
@@ -237,7 +289,6 @@ def download_beacon_data(start_date, end_date):
 
             print(
                 f"{sensor_id}: {len(df):,} rows "
-                f"(dropped {before_drop - after_drop:,} rows) "
                 f"| coverage {coverage:.2%}"
             )
 

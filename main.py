@@ -1,6 +1,7 @@
 #imports
 from datetime import datetime, timedelta, timezone
 from pipeline.pull_data import pull_data
+from pipeline.identify_lowRSD import identify_low_rsd
 
 #*****USERS INPUT DATA HERE*****
 
@@ -9,7 +10,7 @@ from pipeline.pull_data import pull_data
 
 API_KEY = "YOUR_KEY_HERE"
 START_DATE = "2025-10-28"
-END_DATE = "2026-06-23"
+END_DATE = "2026-05-31"
 print("\n=====Beginning calibration pipeline=====")
 
 #*****ERROR CHECKING*****
@@ -68,3 +69,15 @@ quant_df, beacon_df, download_summary = pull_data(api_key=API_KEY,
                                                   start_date=start_dt,
                                                   end_date=end_dt)
 print("\n=====DOWNLOADING AND CLEANING COMPLETE=====")
+
+#*****IDENTIFYING LOW RSD TIME PERIODS*****
+
+print("\n===== IDENTIFYING LOW RSD PERIODS =====")
+
+low_rsd_df, rsd_df, rsd_summary = identify_low_rsd(
+    quant_df,
+    concentration_cutoff=15,
+    percentile=10
+)
+
+print("\n===== IDENTIFIED LOW RSD PERIODS =====")
