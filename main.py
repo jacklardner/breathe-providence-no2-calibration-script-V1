@@ -4,6 +4,7 @@ from pipeline.pull_data import pull_data
 from pipeline.identify_lowRSD import identify_low_rsd
 from pipeline.build_datasets import build_datasets, plot_train_test_summary
 from pipeline.train_models import train_models
+from pipeline.networkwide_analysis import networkwide_analysis
 
 #*****USERS INPUT DATA HERE*****
 
@@ -12,7 +13,7 @@ from pipeline.train_models import train_models
 
 API_KEY = "YOUR_KEY_HERE"
 START_DATE = "2025-10-28"
-END_DATE = "2026-06-29"
+END_DATE = "2026-06-30"
 print("\n=====Beginning calibration pipeline=====")
 
 #*****ERROR CHECKING*****
@@ -57,7 +58,7 @@ if hours < MIN_HOURS:
         f"You are short by "
         f"{difference:,} hours.\n\n"
         f"Recommended END_DATE: "
-        f"{recommend_end_dt.strftime('%Y-%m-%d')}\n\n"
+        f"{recommend_end_dt.strftime("%Y-%m-%d")}\n\n"
         f"Generally, it is recommended to utilize a full year of calibrations"
         f" that include the time of interest\n"
     )
@@ -161,6 +162,15 @@ model_results, results_df, prediction_df = train_models(
 
 results_df.to_csv("data for analysis/model_metrics_by_site.csv", index=False)
 
-prediction_df.to_csv("data for analysis/calibrated_no2_timeseries.csv", index=False)
+prediction_df.to_csv("final calibrated datasets/calibrated_no2_timeseries.csv",
+                    index=False)
 
 print("\n===== MODEL TRAINING COMPLETE =====")
+
+#*****NETWORKWIDE ANALYSIS*****
+
+print("\n===== NETWORKWIDE ANALYSIS =====")
+
+nw_summary = networkwide_analysis(prediction_df)
+
+print("\n===== NETWORKWIDE ANALYSIS COMPLETE =====")
