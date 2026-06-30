@@ -14,7 +14,7 @@ from pipeline.reporting import generate_report
 
 API_KEY = "YOUR_KEY_HERE"
 START_DATE = "2025-10-28"
-END_DATE = "2026-06-30"
+END_DATE = "2026-06-29"
 print("\n=====Beginning calibration pipeline=====")
 
 #*****ERROR CHECKING*****
