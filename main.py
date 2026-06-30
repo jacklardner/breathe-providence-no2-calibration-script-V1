@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from pipeline.pull_data import pull_data
 from pipeline.identify_lowRSD import identify_low_rsd
 from pipeline.build_datasets import build_datasets, plot_train_test_summary
+from pipeline.train_models import train_models
 
 #*****USERS INPUT DATA HERE*****
 
@@ -11,7 +12,7 @@ from pipeline.build_datasets import build_datasets, plot_train_test_summary
 
 API_KEY = "YOUR_KEY_HERE"
 START_DATE = "2025-10-28"
-END_DATE = "2026-05-31"
+END_DATE = "2026-06-29"
 print("\n=====Beginning calibration pipeline=====")
 
 #*****ERROR CHECKING*****
@@ -44,7 +45,7 @@ if start_dt < earliest_quant_date:
                      )
 
 hours = ((end_dt - start_dt).days + 1) * 24
-MIN_HOURS = 2500
+MIN_HOURS = 3000
 if hours < MIN_HOURS:
     difference = int(MIN_HOURS - hours)
     recommend_end_dt = start_dt + timedelta(hours=MIN_HOURS)
@@ -84,7 +85,8 @@ low_rsd_df, rsd_df, rsd_summary = identify_low_rsd(
 print("\n===== IDENTIFIED LOW RSD PERIODS =====")
 
 #*****BUILD TRAINING/TESTING DATASETS*****
-
+#where each beacon site is calibrated to. Can be adjusted here by editing the 
+#value of a sensor
 sensor_to_site = {
     "Sensor03": "dpw",
     "Sensor08": "dpw",
@@ -144,3 +146,21 @@ plot_train_test_summary(
 )
 
 print("\n===== TRAINING/TESTING DATASETS COMPLETE =====")
+
+#*****MODEL TRAINING*****
+
+print("\n===== MODEL TRAINING HAS BEGUN =====")
+
+model_results, results_df, prediction_df = train_models(
+    training_data=training_data,
+    testing_data=testing_data,
+    quant_df=quant_df,
+    beacon_data=beacon_df,
+    sensor_to_site=sensor_to_site
+)
+
+results_df.to_csv("data for analysis/model_metrics_by_site.csv", index=False)
+
+prediction_df.to_csv("data for analysis/calibrated_no2_timeseries.csv", index=False)
+
+print("\n===== MODEL TRAINING COMPLETE =====")

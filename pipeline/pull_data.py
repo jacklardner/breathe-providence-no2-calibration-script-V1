@@ -54,6 +54,8 @@ VARIABLES = [
 VARIABLE_STRING = ",".join(VARIABLES)
 BASE_URL = "http://128.32.208.8/node"
 
+RECAL_CUTOVER = datetime(2026, 2, 14)
+
 def pull_data(api_key, start_date, end_date):
     quant_df = download_quant_data(api_key, start_date, end_date)
     beacon_data = download_beacon_data(start_date, end_date)
@@ -71,87 +73,148 @@ def download_quant_data(api_key, start_date, end_date):
 
         print(f"\n===== Downloading {site.upper()} =====")
 
-        all_data = []
+        #NO2 data at MJF was recalibrated and we need to pull from older
+        #recalibrated dataset
+        if site == "mjf" and datetime.combine(start_date, datetime.min.time()) < RECAL_CUTOVER:
 
-        #quantAQ limits downloads to 31 days, so we must download 30 days
-        #of resampled data at a time
-
-        #because the quant API is annoying and pulls requests from local time
-        #we need to pull data from one day before to ensure we get the times we
-        #need
-        chunk_start = start_date - timedelta(days=1)
-        while chunk_start <= end_date:
-
-            chunk_end = min(chunk_start + timedelta(days=30), end_date)
-
-            print(f"  -> {chunk_start} to {chunk_end}")
-
-            url = "https://api.quant-aq.com/v1/data/resampled/"
-
-            params = {
-                "sn": sn,
-                "start_date": chunk_start.strftime("%Y-%m-%d"),
-                "end_date": chunk_end.strftime("%Y-%m-%d"),
-                "period": "1h"
-            }
-
-            response = requests.get(url, params=params, auth=(api_key, ""))
-
-            print("STATUS:", response.status_code)
-
-            if response.status_code != 200:
-                print(response.text)
-                response.raise_for_status()
-
-            payload = response.json()
-
-            all_data.extend(payload["data"])
-
-            chunk_start = chunk_end + timedelta(days=1)
-
-        #construct dataframe
-        df = pd.DataFrame(all_data)
-
-        df["datetime_utc"] = pd.to_datetime(
-            df["period_start_utc"],
-            utc=True
-        ).dt.tz_localize(None)
-
-        #remove negative values
-        n_negative = (df["no2"] < 0).sum()
-        if n_negative > 0:
-            print(f"{site.upper()}: setting {n_negative:,} negative NO2 values to NA")
-
-        df.loc[df["no2"] < 0, "no2"] = pd.NA
-
-        #trim back down to final requested days
-        requested_start = datetime.combine(
-            start_date,
-            datetime.min.time()
-        )
-        requested_end = datetime.combine(
-            end_date,
-            datetime.max.time().replace(
-                minute=0,
-                second=0,
-                microsecond=0
+            requested_start = datetime.combine(start_date, datetime.min.time())
+            requested_end = datetime.combine(
+                end_date,
+                datetime.max.time().replace(minute=0, second=0, microsecond=0)
             )
-        )
-        df = df[
-            (df["datetime_utc"] >= requested_start) &
-            (df["datetime_utc"] <= requested_end)
-        ]
 
-        df = df[["datetime_utc", "no2"]].copy()
-        df = df.rename(columns={"no2": site})
-        df = df.sort_values("datetime_utc")
+            #grab recalibrated data
+            print(f"  -> Loading recalibrated CSV for pre-cutover period")
+            recal = pd.read_csv("recalibrated data/mjf_cleaned.csv")
+            recal["datetime_utc"] = pd.to_datetime(recal["datetime_utc"])
+            recal = recal[["datetime_utc", "no2"]].copy()
+            recal = recal[recal["datetime_utc"] < RECAL_CUTOVER]
+            recal = recal[recal["datetime_utc"] >= requested_start]
+            recal.loc[recal["no2"] < 0, "no2"] = pd.NA
+            print(f"  Recalibrated rows: {len(recal):,}")
+
+            #if end date is after the cutoff date also pull from the API
+            if requested_end >= RECAL_CUTOVER:
+                print(f"  -> Pulling API data from {RECAL_CUTOVER.date()} to {end_date}")
+                all_data = []
+                chunk_start = RECAL_CUTOVER.date()
+                while chunk_start <= end_date:
+                    chunk_end = min(chunk_start + timedelta(days=30), end_date)
+                    print(f"    -> {chunk_start} to {chunk_end}")
+                    params = {
+                        "sn": sn,
+                        "start_date": chunk_start.strftime("%Y-%m-%d"),
+                        "end_date": chunk_end.strftime("%Y-%m-%d"),
+                        "period": "1h"
+                    }
+                    response = requests.get(
+                        "https://api.quant-aq.com/v1/data/resampled/",
+                        params=params,
+                        auth=(api_key, "")
+                    )
+                    print("STATUS:", response.status_code)
+                    if response.status_code != 200:
+                        print(response.text)
+                        response.raise_for_status()
+                    all_data.extend(response.json()["data"])
+                    chunk_start = chunk_end + timedelta(days=1)
+
+                api_df = pd.DataFrame(all_data)
+                api_df["datetime_utc"] = pd.to_datetime(
+                    api_df["period_start_utc"], utc=True
+                ).dt.tz_localize(None)
+                api_df = api_df[api_df["datetime_utc"] <= requested_end]
+                n_negative = (api_df["no2"] < 0).sum()
+                if n_negative > 0:
+                    print(f"MJF: setting {n_negative:,} negative NO2 values to NA")
+                api_df.loc[api_df["no2"] < 0, "no2"] = pd.NA
+                api_df = api_df[["datetime_utc", "no2"]].copy()
+
+                df = pd.concat([recal, api_df], ignore_index=True)
+            else:
+                df = recal
+
+            df = df.rename(columns={"no2": "mjf"})
+            df = df.sort_values("datetime_utc").reset_index(drop=True)
+
+        else:
+            #quantAQ limits downloads to 31 days, so we must download 30 days
+            #of resampled data at a time
+
+            #because the quant API is annoying and pulls requests from local time
+            #we need to pull data from one day before to ensure we get the times we need
+            all_data = []
+            chunk_start = start_date - timedelta(days=1)
+            while chunk_start <= end_date:
+
+                chunk_end = min(chunk_start + timedelta(days=30), end_date)
+
+                print(f"  -> {chunk_start} to {chunk_end}")
+
+                url = "https://api.quant-aq.com/v1/data/resampled/"
+
+                params = {
+                    "sn": sn,
+                    "start_date": chunk_start.strftime("%Y-%m-%d"),
+                    "end_date": chunk_end.strftime("%Y-%m-%d"),
+                    "period": "1h"
+                }
+
+                response = requests.get(url, params=params, auth=(api_key, ""))
+
+                print("STATUS:", response.status_code)
+
+                if response.status_code != 200:
+                    print(response.text)
+                    response.raise_for_status()
+
+                payload = response.json()
+
+                all_data.extend(payload["data"])
+
+                chunk_start = chunk_end + timedelta(days=1)
+
+            #construct dataframe
+            df = pd.DataFrame(all_data)
+
+            df["datetime_utc"] = pd.to_datetime(
+                df["period_start_utc"],
+                utc=True
+            ).dt.tz_localize(None)
+
+            #remove negative values
+            n_negative = (df["no2"] < 0).sum()
+            if n_negative > 0:
+                print(f"{site.upper()}: setting {n_negative:,} negative NO2 values to NA")
+
+            df.loc[df["no2"] < 0, "no2"] = pd.NA
+
+            #trim back down to final requested days
+            requested_start = datetime.combine(
+                start_date,
+                datetime.min.time()
+            )
+            requested_end = datetime.combine(
+                end_date,
+                datetime.max.time().replace(
+                    minute=0,
+                    second=0,
+                    microsecond=0
+                )
+            )
+            df = df[
+                (df["datetime_utc"] >= requested_start) &
+                (df["datetime_utc"] <= requested_end)
+            ]
+
+            df = df[["datetime_utc", "no2"]].copy()
+            df = df.rename(columns={"no2": site})
+            df = df.sort_values("datetime_utc")
 
         quant_data[site] = df
-
         print(f"{site.upper()} total rows: {len(df):,}")
 
     #merge dataframes
-
     merged = quant_data["dpw"]
 
     for site in ["mjf", "pema", "pha"]:
