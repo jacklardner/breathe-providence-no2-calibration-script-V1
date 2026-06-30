@@ -58,7 +58,7 @@ if hours < MIN_HOURS:
         f"You are short by "
         f"{difference:,} hours.\n\n"
         f"Recommended END_DATE: "
-        f"{recommend_end_dt.strftime("%Y-%m-%d")}\n\n"
+        f"{recommend_end_dt.strftime('%Y-%m-%d')}\n\n"
         f"Generally, it is recommended to utilize a full year of calibrations"
         f" that include the time of interest\n"
     )
