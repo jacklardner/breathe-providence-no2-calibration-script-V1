@@ -5,6 +5,7 @@ from pipeline.identify_lowRSD import identify_low_rsd
 from pipeline.build_datasets import build_datasets, plot_train_test_summary
 from pipeline.train_models import train_models
 from pipeline.networkwide_analysis import networkwide_analysis
+from pipeline.reporting import generate_report
 
 #*****USERS INPUT DATA HERE*****
 
@@ -174,3 +175,11 @@ print("\n===== NETWORKWIDE ANALYSIS =====")
 nw_summary = networkwide_analysis(prediction_df)
 
 print("\n===== NETWORKWIDE ANALYSIS COMPLETE =====")
+
+#*****GENERATE PDF REPORT*****
+
+print("\n===== GENERATING PDF REPORT =====")
+
+generate_report()
+
+print("\n===== PDF REPORT COMPLETE =====")
