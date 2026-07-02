@@ -14,10 +14,10 @@ OUTPUT_PDF = "final PDF report/NO2_Network_Report.pdf"
 
 SECTIONS = [
     {
-        "title": "Section 1 Quantitative EDA",
+        "title": "Section 1 QuantAQ EDA",
         "items": [
-            ("quant_summary_statistics.png", "Quantitative Summary Statistics"),
-            ("quant_boxplot.png", "Quantitative Boxplot"),
+            ("quant_summary_statistics.png", "QuantAQ Summary Statistics"),
+            ("quant_boxplot.png", "QuantAQ Boxplot"),
         ],
     },
     {
