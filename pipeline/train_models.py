@@ -78,10 +78,10 @@ def train_models(training_data, testing_data, quant_df, beacon_data,
         y_test = test_df[target_col]
 
         model = XGBRegressor(
-            n_estimators=300,
-            max_depth=3,
-            learning_rate=0.05,
-            subsample=0.8,
+            n_estimators=150,
+            max_depth=2,
+            learning_rate=0.1,
+            subsample=1.0,
             colsample_bytree=0.8,
             random_state=42
         )
