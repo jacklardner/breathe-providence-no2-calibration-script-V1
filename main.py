@@ -12,6 +12,9 @@ from pipeline.reporting import generate_report
 #note that here we accept start and end dates in UTC.
 #start date begins at 00:00:00 and end date ends at 23:00:00
 
+#it is highly recommended to keep start date as 2025-10-28 and trim data down
+#manually after. see readme
+
 API_KEY = "YOUR_KEY_HERE"
 START_DATE = "2025-10-28"
 END_DATE = "2026-06-29"
