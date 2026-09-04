@@ -1,5 +1,8 @@
 # breathe-providence-no2-calibration-script
 
+See "calibration summary v1.pdf" for a highly detailed description of the
+calibration process.
+
 This application is a streamlined script that pulls calibrtated hourly NO2 data
 from the Breathe Providence low cost air sensor network. Users can change the
 parameters in the main.py file to download calibrated NO2 data as needed.
@@ -46,4 +49,6 @@ calibrations are deemed trustworthy based on performance of our MODULAIR that
 is collocated with the DEM site in East Providence.
 
 (\*) (Winter, Anna R., et al. “A Scalable Calibration Method for Enhanced
-Accuracy in Dense Air Quality Monitoring Networks.” Environmental Science & Technology, vol. 59, no. 5, 28 Jan. 2025, pp. 2599–2610, doi:10.1021/acs.est.4c08855. )
+Accuracy in Dense Air Quality Monitoring Networks.” Environmental Science &
+Technology, vol. 59, no. 5, 28 Jan. 2025, pp. 2599–2610,
+doi:10.1021/acs.est.4c08855. )
